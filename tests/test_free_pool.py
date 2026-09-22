@@ -13,6 +13,8 @@ def test_price_requires_both_zero_and_free_id():
     assert not is_free_openrouter_model({"id": "vendor/model:free", "pricing": {}})
     assert not is_free_openrouter_model({"id": "vendor/model",
         "pricing": {"prompt": "0", "completion": "0"}})
+    assert is_free_openrouter_model({"id": "openrouter/free",
+        "pricing": {"prompt": "0", "completion": "0"}})
     assert not _zero_price(None)
     assert not _zero_price("NaN")
     assert not _zero_price("-0.01")
