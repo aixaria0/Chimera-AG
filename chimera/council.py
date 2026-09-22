@@ -80,7 +80,7 @@ class Council:
                         errors[name] = verr
                     else:
                         verdicts[name] = verdict.strip().upper() == "APPROVE"
-        accepted = bool(verdicts) and all(verdicts.values())
+        accepted = (len(verdicts) == len(self.verifiers) > 0 and all(verdicts.values()))
         return {
             "status": "accepted" if accepted else "unverified",
             "answer": candidate if accepted else None,
