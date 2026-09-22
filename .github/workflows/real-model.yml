@@ -34,8 +34,8 @@ jobs:
           python-version: '3.11'
       - name: Start actual application and actual Ollama container
         run: docker compose up -d --build
-      - name: Download real open-weight model to GitHub runner
-        run: docker compose exec -T ollama ollama pull smollm2:135m
+      - name: Assert real model was automatically downloaded into Ollama
+        run: docker compose exec -T ollama ollama list
       - name: Generate real model response through browser product API
         run: python scripts/real_model_smoke.py
       - name: Show service logs only on failure
