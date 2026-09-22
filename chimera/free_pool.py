@@ -101,6 +101,15 @@ def make_pool(*, providers: tuple[str, ...] = ("ollama", "vllm", "openrouter"),
             # Never include exception body: urllib exceptions may contain remote content.
             report.append({"provider": name, "registered": 0,
                            "status": "unavailable", "error_type": type(exc).__name__})
+    # Reserve one verifier using a distinct model; never count it as a worker.
+    if len({s.model for s in specs}) >= 2:
+        from dataclasses import replace
+        for i in range(len(specs) - 1, -1, -1):
+            chosen = specs[i]
+            if chosen.enabled and any(s.enabled and s.model != chosen.model
+                                      for j, s in enumerate(specs) if j != i):
+                specs[i] = replace(chosen, role="verifier")
+                break
     return specs, report
 
 
