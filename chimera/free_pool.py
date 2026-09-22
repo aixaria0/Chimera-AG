@@ -52,7 +52,7 @@ def _zero_price(value: object) -> bool:
 def is_free_openrouter_model(record: dict) -> bool:
     model = record.get("id")
     pricing = record.get("pricing")
-    if not isinstance(model, str) or not model.endswith(":free"):
+    if not isinstance(model, str) or not (model.endswith(":free") or model == "openrouter/free"):
         return False
     if not isinstance(pricing, dict):
         return False
