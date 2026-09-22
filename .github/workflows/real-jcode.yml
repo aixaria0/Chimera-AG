@@ -5,6 +5,11 @@ on:
     paths:
       - scripts/real_jcode_smoke.sh
       - scripts/real_jcode_coding_task.sh
+      - chimera/declarative_edits.py
+      - chimera/coding_workflow.py
+      - chimera/coding_cli.py
+      - chimera/product_integrations.py
+      - tests/test_declarative_edits.py
       - compose.jcode-ci.yaml
       - .github/workflows/real-jcode.yml
   pull_request:
