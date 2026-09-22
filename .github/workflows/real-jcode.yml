@@ -5,6 +5,9 @@ on:
     paths:
       - scripts/real_jcode_smoke.sh
       - scripts/real_jcode_coding_task.sh
+      - scripts/real_jcode_artifact_task.sh
+      - chimera/jcode_artifacts.py
+      - chimera/jcode_artifact_cli.py
       - chimera/declarative_edits.py
       - chimera/coding_workflow.py
       - chimera/coding_cli.py
@@ -47,8 +50,8 @@ jobs:
           python-version: '3.11'
       - name: Install actual Chimera coding workflow and pytest
         run: python -m pip install -e '.[test]'
-      - name: Run real jcode plus actual Agency Agents coding workflow
-        run: bash scripts/real_jcode_coding_task.sh
+      - name: Run real jcode code generation, controlled file creation and pytest
+        run: bash scripts/real_jcode_artifact_task.sh
       - name: Show service logs on failure
         if: failure()
         run: docker compose -f compose.yaml -f compose.jcode-ci.yaml logs --tail=80
