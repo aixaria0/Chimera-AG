@@ -24,6 +24,19 @@ def test_only_preapproved_new_file_is_created(tmp_path):
     assert (tmp_path / "ANSWER.txt").read_text() == "real contents\n"
 
 
+def test_ignore_real_model_optional_write_metadata_without_extra_actions(tmp_path):
+    output = "```json\n" + json.dumps({
+        "name": "write",
+        "arguments": {"file_path": "a.txt", "content": "ok",
+                      "intent": "create", "accept_large_output": True,
+                      "format": "markdown"},
+    }) + "\n```\n[Tokens] upload: 200 download: 20"
+    created = apply_authorized_creation(
+        tmp_path, output, allowed_paths=frozenset({"a.txt"}))
+    assert created["path"] == "a.txt"
+    assert (tmp_path / "a.txt").read_text() == "ok"
+
+
 def test_never_apply_unapproved_or_traversing_write(tmp_path):
     for path in ("../elsewhere.txt", ".git/config", "other.txt", "/tmp/elsewhere.txt"):
         assert apply_authorized_creation(
