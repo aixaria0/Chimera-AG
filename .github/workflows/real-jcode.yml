@@ -1,0 +1,44 @@
+name: Real jcode coding-agent inference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/real_jcode_smoke.sh
+      - compose.jcode-ci.yaml
+      - .github/workflows/real-jcode.yml
+  pull_request:
+    paths:
+      - scripts/real_jcode_smoke.sh
+      - compose.jcode-ci.yaml
+      - .github/workflows/real-jcode.yml
+permissions:
+  contents: read
+jobs:
+  real-jcode-ollama:
+    name: Install upstream jcode and exercise real local model
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CHIMERA_MODEL: qwen2.5-coder:1.5b
+      CHIMERA_PORT: "8080"
+      JCODE_NO_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start real Ollama engine on GitHub CPU machine
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml up -d --build
+      - name: Confirm installed Ollama model
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml exec -T ollama ollama list
+      - name: Install actual upstream jcode binary
+        run: |
+          curl -fsSL https://jcode.sh/install -o /tmp/install-jcode.sh
+          bash /tmp/install-jcode.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Run genuine jcode CLI inference against installed local weights
+        run: bash scripts/real_jcode_smoke.sh
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml logs --tail=80
+      - name: Stop temporary model and application
+        if: always()
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml down
