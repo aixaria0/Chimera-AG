@@ -1,4 +1,4 @@
-# Chimera-AG v0.7 — Evidence-Routed Intelligence Council
+# Chimera-AG v0.8 — Evidence-Routed Intelligence Council
 
 Chimera is an experimental multi-model coordination system for local and cloud AI endpoints. It can discover model catalogs, register large heterogeneous agent pools, fan tasks out across workers, synthesize competing answers, and independently verify the synthesis.
 
@@ -64,3 +64,7 @@ The next step is not merely increasing agent count. It is task-aware routing: be
 ## Agency Agents × jcode coding workflows
 
 `chimera-agency` discovers specialist roles from a trusted local checkout of [Agency Agents](https://github.com/msitarzewski/agency-agents) and can invoke an independently installed [jcode](https://github.com/1jehuang/jcode) coding runtime in an explicit local workspace. It defaults to dry-run; `--execute` is required to run jcode. See `docs/JCODE_AGENCY_INTEGRATION.md` for setup, attribution and security.
+
+## End-to-end coding workflow
+
+`chimera-code` composes Agency Agents planning, implementation and review roles using an installed jcode runtime, then executes a fixed Python or Rust test suite. It starts in dry-run mode and requires an explicitly clean local worktree and `--execute` before model calls or file modifications. The result is **a candidate for human review**, not an auto-committed or deployed patch. See `docs/VERIFIED_CODING_WORKFLOW.md` for setup and failure gates.
