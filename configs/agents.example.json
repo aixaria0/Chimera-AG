@@ -1,0 +1,39 @@
+{
+  "agents": [
+    {
+      "name": "local-llama",
+      "provider": "local",
+      "model": "your-local-model",
+      "base_url": "http://127.0.0.1:11434/v1/chat/completions",
+      "role": "worker",
+      "enabled": false
+    },
+    {
+      "name": "openrouter-worker",
+      "provider": "openrouter",
+      "model": "provider/model-id",
+      "base_url": "https://openrouter.ai/api/v1/chat/completions",
+      "key_env": "OPENROUTER_API_KEY",
+      "role": "worker",
+      "enabled": false
+    },
+    {
+      "name": "nvidia-worker",
+      "provider": "nvidia",
+      "model": "publisher/model-id",
+      "base_url": "https://integrate.api.nvidia.com/v1/chat/completions",
+      "key_env": "NVIDIA_API_KEY",
+      "role": "worker",
+      "enabled": false
+    },
+    {
+      "name": "cloud-verifier",
+      "provider": "openrouter",
+      "model": "provider/independent-verifier",
+      "base_url": "https://openrouter.ai/api/v1/chat/completions",
+      "key_env": "OPENROUTER_API_KEY",
+      "role": "verifier",
+      "enabled": false
+    }
+  ]
+}
