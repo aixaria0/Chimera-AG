@@ -20,6 +20,7 @@ class Provider:
     models_url: str
     completions_url: str
     key_env: str = ""
+    discovery_requires_key: bool = True
 
 
 PROVIDERS = {
@@ -29,6 +30,15 @@ PROVIDERS = {
     "nvidia": Provider(
         "nvidia", "https://integrate.api.nvidia.com/v1/models",
         "https://integrate.api.nvidia.com/v1/chat/completions", "NVIDIA_API_KEY"),
+    "huggingface": Provider(
+        "huggingface", "https://router.huggingface.co/v1/models",
+        "https://router.huggingface.co/v1/chat/completions", "HF_TOKEN"),
+    "groq": Provider(
+        "groq", "https://api.groq.com/openai/v1/models",
+        "https://api.groq.com/openai/v1/chat/completions", "GROQ_API_KEY"),
+    "cerebras": Provider(
+        "cerebras", "https://api.cerebras.ai/public/v1/models",
+        "https://api.cerebras.ai/v1/chat/completions", "CEREBRAS_API_KEY", False),
     "ollama": Provider(
         "ollama", "http://127.0.0.1:11434/v1/models",
         "http://127.0.0.1:11434/v1/chat/completions"),
@@ -46,7 +56,7 @@ def discover(provider: Provider, *, timeout: float = 12.0) -> list[str]:
     ):
         raise ValueError("Discovery URL must use HTTPS or loopback HTTP")
     key = os.getenv(provider.key_env) if provider.key_env else None
-    if provider.key_env and not key:
+    if provider.discovery_requires_key and provider.key_env and not key:
         raise RuntimeError(f"Missing {provider.key_env}; cannot discover {provider.name}")
     headers = {"Accept": "application/json"}
     if key:
