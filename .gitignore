@@ -4,3 +4,8 @@ __pycache__/
 *.egg-info/
 .env
 experiments/*.jsonl
+
+# Runtime-only provider manifests and secrets
+configs/agents.json
+configs/free_agents.json
+*.env
