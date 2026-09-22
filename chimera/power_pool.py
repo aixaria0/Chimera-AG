@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from urllib.request import Request, urlopen
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -22,6 +23,29 @@ DEFAULT_PROVIDERS = (
 LOCAL = {"ollama", "vllm"}
 
 
+def power_discover(provider_name: str) -> list[str]:
+    """Prefer OpenRouter's live intelligence ordering; normal discovery elsewhere."""
+    cfg = PROVIDERS[provider_name]
+    if provider_name != "openrouter":
+        return discover(cfg)
+    key = os.environ.get(cfg.key_env, "")
+    if not key:
+        raise RuntimeError("OPENROUTER_API_KEY is not configured")
+    request = Request(
+        cfg.models_url + "?sort=intelligence-high-to-low&output_modalities=text",
+        headers={"Authorization": f"Bearer {key}", "Accept": "application/json"})
+    with urlopen(request, timeout=12) as response:
+        body = json.load(response)
+    rows = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(rows, list):
+        raise ValueError("Unexpected OpenRouter model catalog")
+    # Preserve provider ranking while deduplicating.
+    return list(dict.fromkeys(
+        row["id"] for row in rows
+        if isinstance(row, dict) and isinstance(row.get("id"), str) and row["id"].strip()
+    ))
+
+
 def _enabled(provider: str, activate_cloud: bool) -> bool:
     cfg = PROVIDERS[provider]
     if provider in LOCAL:
@@ -31,7 +55,7 @@ def _enabled(provider: str, activate_cloud: bool) -> bool:
 
 def build_power_pool(*, providers=DEFAULT_PROVIDERS, activate_cloud=False,
                      max_per_provider=0, max_total=0, include_fusion=True,
-                     discover_fn=discover):
+                     discover_fn=None):
     if max_per_provider < 0 or max_total < 0:
         raise ValueError("limits must be >= 0; zero means no Chimera registration cap")
     specs, report = [], []
@@ -40,7 +64,7 @@ def build_power_pool(*, providers=DEFAULT_PROVIDERS, activate_cloud=False,
             raise ValueError(f"Unknown provider: {provider_name}")
         cfg = PROVIDERS[provider_name]
         try:
-            ids = discover_fn(cfg)
+            ids = (discover_fn(cfg) if discover_fn is not None else power_discover(provider_name))
             if max_per_provider:
                 ids = ids[:max_per_provider]
             if max_total:
