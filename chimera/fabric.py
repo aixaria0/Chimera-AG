@@ -31,7 +31,7 @@ class AgentSpec:
             raise ValueError(f"Invalid endpoint: {self.name}")
         if parsed.scheme != "https" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
             raise ValueError("Plain HTTP allowed only for loopback endpoints")
-        if not self.name or not self.model or self.role not in ("worker", "verifier"):
+        if not self.name or not self.model or self.role not in ("worker", "verifier", "synthesizer"):
             raise ValueError(f"Invalid agent specification: {self.name}")
 
 
@@ -97,8 +97,8 @@ class Fabric:
     """Fan-out to enabled workers, obtain a majority vote and independent verdict."""
     def __init__(self, specs: list[AgentSpec], max_workers: int = 4,
                  max_requests: int = 16, endpoint_factory=None):
-        if max_workers < 1 or max_workers > 32:
-            raise ValueError("max_workers must be between 1 and 32")
+        if max_workers < 1:
+            raise ValueError("max_workers must be positive")
         if not any(s.enabled and s.role == "worker" for s in specs):
             raise ValueError("At least one enabled worker is required")
         self.specs = [s for s in specs if s.enabled]
@@ -122,7 +122,7 @@ class Fabric:
 
         # A bounded thread pool: adding entries to configuration does not start
         # unbounded concurrent cloud requests.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, len(workers))) as pool:
             futures = [pool.submit(call, s) for s in workers]
             for future in concurrent.futures.as_completed(futures):
                 name, output, error = future.result()

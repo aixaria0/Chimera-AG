@@ -9,3 +9,4 @@ experiments/*.jsonl
 configs/agents.json
 configs/free_agents.json
 *.env
+configs/power_agents.json
