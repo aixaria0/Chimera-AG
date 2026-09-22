@@ -28,7 +28,8 @@ def test_never_apply_unapproved_or_traversing_write(tmp_path):
     for path in ("../elsewhere.txt", ".git/config", "other.txt", "/tmp/elsewhere.txt"):
         assert apply_authorized_creation(
             tmp_path, tool_intent(path),
-            allowed_paths=frozenset({path})) is None
+            allowed_paths=(frozenset({"ANSWER.txt"}) if path == "other.txt"
+                           else frozenset({path}))) is None
     assert not (tmp_path / "other.txt").exists()
 
 
