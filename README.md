@@ -1,4 +1,4 @@
-# Chimera-AG v0.4 — Hybrid Intelligence Council
+# Chimera-AG v0.5 — Evidence-Routed Intelligence Council
 
 Chimera is an experimental multi-model coordination system for local and cloud AI endpoints. It can discover model catalogs, register large heterogeneous agent pools, fan tasks out across workers, synthesize competing answers, and independently verify the synthesis.
 
@@ -13,7 +13,7 @@ pip install -e '.[test]'
 pytest -q
 ```
 
-## Three operating modes
+## Four operating modes
 
 ### 1. Offline v0.1 benchmark
 `chimera` keeps the original deterministic coordination experiment for reproducible CI.
@@ -25,6 +25,10 @@ pytest -q
 `chimera-power-pool` discovers Ollama, vLLM, OpenRouter, Hugging Face Inference Providers, NVIDIA, Groq and Cerebras. With default zero registration limits it does not impose an arbitrary model-count cap. Cloud entries only activate when `--activate-cloud` is explicit and a credential exists in the runtime environment.
 
 `chimera-council` uses all enabled workers by default, sends their responses to a dedicated synthesizer, and then requests independent verifier decisions. OpenRouter models are discovered using the provider's live intelligence ordering when available. See `docs/MAX_POWER.md`.
+
+### 4. Measured specialist routing
+
+`chimera-route` selects workers using domain-specific training observations and preserves independent synthesis/verification roles. It defaults to a zero-network dry run. `chimera-benchmark` compares candidate and baseline on identical held-out tasks with a no-leakage check and human-reviewed promotion gate. See `docs/EVIDENCE_ROUTING.md`.
 
 ## Example
 
