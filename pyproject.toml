@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "chimera-coordination"
-version = "0.4.0"
+version = "0.5.0"
 description = "Bounded hybrid agent coordination and model discovery"
 requires-python = ">=3.10"
 dependencies = []
@@ -17,5 +17,7 @@ chimera-discover = "chimera.discover_cli:main"
 chimera-free-pool = "chimera.free_pool:run_cli"
 chimera-power-pool = "chimera.power_pool:main"
 chimera-council = "chimera.council_cli:main"
+chimera-route = "chimera.routing_cli:main"
+chimera-benchmark = "chimera.routing_cli:benchmark_main"
 [tool.setuptools.packages.find]
 include = ["chimera*"]
