@@ -153,8 +153,12 @@ def coding_config() -> dict:
     for role in ("planner", "engineer", "critic"):
         load_role(roles, AGENCY_ROLE_IDS[role])
     load_role(roles, "engineering/engineering-senior-developer.md")
+    paths = frozenset(name.strip() for name in
+                      os.environ.get("CHIMERA_CODE_WRITE_PATHS", "").split(",")
+                      if name.strip())
     return {"enabled": True, "checkout": roles, "workspace": root,
-            "executable": executable}
+            "executable": executable, "declarative_write_paths": paths,
+            "artifact_target": os.environ.get("CHIMERA_CODE_ARTIFACT_TARGET", "").strip()}
 
 
 def run_live_coding(task: str, *, config: dict) -> dict:
@@ -164,15 +168,41 @@ def run_live_coding(task: str, *, config: dict) -> dict:
         raise ValueError("Coding mode is disabled")
     if not isinstance(task, str) or not task.strip() or len(task) > 6000:
         raise ValueError("Coding task must contain 1–6000 characters")
+    if config.get("artifact_target"):
+        from .jcode_artifacts import generate_and_test
+        artifact = generate_and_test(
+            checkout=config["checkout"], workspace=config["workspace"],
+            task=task, target=config["artifact_target"],
+            executable=config["executable"])
+        phase_status = "completed" if artifact.get("content_sha256") else artifact["status"]
+        test_status = artifact.get("test_status", "not_run")
+        return {
+            "status": artifact["status"],
+            "phases": [
+                {"name": "real_jcode_content", "status": phase_status,
+                 "output_preview": "Generated content SHA256: " +
+                                   str(artifact.get("content_sha256"))},
+                {"name": "fixed_tests", "status": test_status,
+                 "output_preview": artifact.get("test_output_preview", "")},
+            ],
+            "workspace_changed": bool(artifact.get("content_sha256")),
+            "content_sha256": artifact.get("content_sha256"),
+            "generator": artifact.get("generator"),
+            "human_approval_required": True,
+            "committed": False, "deployed": False,
+        }
     report = execute_workflow(
         checkout=config["checkout"], workspace=config["workspace"], task=task,
         roles={"planner": AGENCY_ROLE_IDS["planner"],
                "implementer": "engineering/engineering-senior-developer.md",
                "reviewer": AGENCY_ROLE_IDS["critic"]},
         executable=config["executable"], per_phase_timeout=180, test_timeout=300,
+        declarative_write_paths=config.get("declarative_write_paths", frozenset()),
     )
     return {
         "status": report["status"], "phases": report["phases"],
+        "constrained_model_edits": report.get("constrained_model_edits", []),
+        "review_inconclusive": report.get("review_inconclusive", False),
         "workspace_changed": report["workspace_changed"],
         "human_approval_required": True, "committed": False, "deployed": False,
     }

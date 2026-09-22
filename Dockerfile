@@ -3,6 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 CHIMERA_HOST=0.0.0.0 CHIMERA_PO
 WORKDIR /opt/chimera
 COPY chimera/ /opt/chimera/chimera/
 COPY web/ /opt/chimera/web/
+COPY benchmarks/ /opt/chimera/benchmarks/
 USER 65532:65532
 EXPOSE 8080
 CMD ["python", "-m", "chimera.product"]

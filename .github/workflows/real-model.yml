@@ -6,6 +6,8 @@ on:
       - chimera/product.py
       - chimera/product_integrations.py
       - chimera/council.py
+      - chimera/live_benchmark.py
+      - benchmarks/live_arithmetic_smoke.json
       - web/**
       - Dockerfile
       - compose.yaml
@@ -40,6 +42,13 @@ jobs:
         run: docker compose exec -T ollama ollama list
       - name: Generate real model response through browser product API
         run: python scripts/real_model_smoke.py
+      - name: Compare single model and real Council on paired fixed tasks
+        run: |
+          docker compose exec -T chimera python -m chimera.live_benchmark \
+            --suite benchmarks/live_arithmetic_smoke.json \
+            --model smollm2:135m --ollama-host http://ollama:11434 \
+            --output /tmp/chimera-paired-report.json --execute
+          docker compose exec -T chimera python -c "import json; r=json.load(open('/tmp/chimera-paired-report.json')); assert r['tasks']==2; assert all(x['single']['generated_tokens'] and x['council']['generated_tokens'] and x['council']['requests_used']==4 for x in r['results']); print('REAL_PAIRED_MODEL_AND_COUNCIL_INFERENCE=PASS')"
       - name: Show service logs only on failure
         if: failure()
         run: docker compose logs --tail=80

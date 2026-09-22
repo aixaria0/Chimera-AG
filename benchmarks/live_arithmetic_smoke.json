@@ -1,0 +1,12 @@
+[
+  {
+    "id": "simple-arithmetic-001",
+    "prompt": "What is 2 plus 2? Reply with only the single digit, no explanation.",
+    "expected": "4"
+  },
+  {
+    "id": "simple-arithmetic-002",
+    "prompt": "What is 3 plus 4? Reply with only the single digit, no explanation.",
+    "expected": "7"
+  }
+]

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Callable
 
 from .agency_bridge import compose_prompt, load_role, run_jcode, JcodeResult
+from .declarative_edits import apply_authorized_creation, is_unexecuted_write_intent
 
 DEFAULT_ROLES = {
     "planner": "engineering/engineering-software-architect.md",
@@ -132,6 +133,7 @@ def execute_workflow(
     per_phase_timeout: int = 180, test_timeout: int = 300,
     run_agent: Callable | None = None, status_fn: Callable | None = None,
     test_fn: Callable | None = None,
+    declarative_write_paths: frozenset[str] = frozenset(),
 ) -> dict:
     """Run in an explicitly authorized, initially clean Git workspace.
 
@@ -158,6 +160,8 @@ def execute_workflow(
         raise ValueError("Workspace must have a clean Git status before starting")
     initial = status()
     phases: list[Phase] = []
+    applied_edits: list[dict] = []
+    review_inconclusive = False
 
     def invoke(name: str, prompt: str) -> JcodeResult:
         began = time.monotonic()
@@ -170,6 +174,8 @@ def execute_workflow(
         return {
             "status": outcome,
             "phases": [asdict(p) for p in phases],
+            "constrained_model_edits": applied_edits,
+            "review_inconclusive": review_inconclusive,
             "workspace_changed": status() != initial,
             "human_approval_required": True,
             "committed": False,
@@ -194,6 +200,11 @@ def execute_workflow(
     )
     if implementation.status != "completed":
         return report("halted_implementation")
+    if status() == initial and declarative_write_paths:
+        evidence = apply_authorized_creation(
+            root, implementation.stdout, allowed_paths=declarative_write_paths)
+        if evidence is not None:
+            applied_edits.append(evidence)
     if status() == initial:
         return report("halted_no_changes")
 
@@ -208,10 +219,13 @@ def execute_workflow(
     if review.status != "completed" or status() != before_review:
         return report("halted_review")
 
+    review_inconclusive = is_unexecuted_write_intent(review.stdout)
     began = time.monotonic()
     tests = test()
     phases.append(_phase("tests", tests, int((time.monotonic()-began)*1000)))
     if tests.status != "completed":
         return report("failed_tests")
     # A test passing does not substitute for reading the review and the diff.
+    if review_inconclusive:
+        return report("tests_passed_review_inconclusive")
     return report("candidate_for_human_review")

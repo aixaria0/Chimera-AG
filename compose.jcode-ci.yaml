@@ -1,0 +1,6 @@
+# Only the ephemeral GitHub Actions runner exposes Ollama to its own host.
+# Production Compose retains the default unexposed Ollama backend.
+services:
+  ollama:
+    ports:
+      - "127.0.0.1:11434:11434"

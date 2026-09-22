@@ -1,0 +1,60 @@
+name: Real jcode coding-agent inference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/real_jcode_smoke.sh
+      - scripts/real_jcode_coding_task.sh
+      - scripts/real_jcode_artifact_task.sh
+      - chimera/jcode_artifacts.py
+      - chimera/jcode_artifact_cli.py
+      - chimera/declarative_edits.py
+      - chimera/coding_workflow.py
+      - chimera/coding_cli.py
+      - chimera/product_integrations.py
+      - tests/test_declarative_edits.py
+      - compose.jcode-ci.yaml
+      - .github/workflows/real-jcode.yml
+  pull_request:
+    paths:
+      - scripts/real_jcode_smoke.sh
+      - compose.jcode-ci.yaml
+      - .github/workflows/real-jcode.yml
+permissions:
+  contents: read
+jobs:
+  real-jcode-ollama:
+    name: Install upstream jcode and exercise real local model
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CHIMERA_MODEL: qwen2.5-coder:3b
+      CHIMERA_PORT: "8080"
+      JCODE_NO_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start real Ollama engine on GitHub CPU machine
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml up -d --build
+      - name: Confirm installed Ollama model
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml exec -T ollama ollama list
+      - name: Install actual upstream jcode binary
+        run: |
+          curl -fsSL https://jcode.sh/install -o /tmp/install-jcode.sh
+          bash /tmp/install-jcode.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Run genuine jcode CLI inference against installed local weights
+        run: bash scripts/real_jcode_smoke.sh
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install actual Chimera coding workflow and pytest
+        run: python -m pip install -e '.[test]'
+      - name: Run real jcode code generation, controlled file creation and pytest
+        run: bash scripts/real_jcode_artifact_task.sh
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml logs --tail=80
+      - name: Stop temporary model and application
+        if: always()
+        run: docker compose -f compose.yaml -f compose.jcode-ci.yaml down
