@@ -35,6 +35,11 @@ def _static_asset(root: Path, request_path: str) -> tuple[Path, str] | None:
     from urllib.parse import unquote
     if request_path in ("/", "/index.html"):
         return root / "index.html", "text/html; charset=utf-8"
+    if request_path in ("/favicon.ico", "/robots.txt"):
+        candidate = root / request_path.lstrip("/")
+        if not candidate.is_file():
+            return None
+        return candidate, mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
     name = unquote(request_path.lstrip("/"))
     parts = Path(name).parts
     if (not name.startswith("assets/") or len(parts) < 2
