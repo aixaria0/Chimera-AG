@@ -1,0 +1,5 @@
+[
+  {"id":"route-1","prompt":"Classify ticket: login reset. ANSWER: support","expected":"support"},
+  {"id":"route-2","prompt":"Classify ticket: invoice question. ANSWER: billing","expected":"billing"},
+  {"id":"route-3","prompt":"Classify ticket: API outage. ANSWER: engineering","expected":"engineering"}
+]
