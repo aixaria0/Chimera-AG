@@ -2,7 +2,7 @@ import json
 import threading
 from pathlib import Path
 import pytest
-from chimera.fabric import AgentSpec, RequestBudget, Fabric, load_specs
+from chimera.fabric import AgentSpec, RequestBudget, Fabric, ChatEndpoint, load_specs
 
 def spec(name, role="worker"):
     return AgentSpec(name, "mock", "mock-model", "http://127.0.0.1:1234/v1/chat/completions", role=role, enabled=True)
@@ -58,3 +58,22 @@ def test_remote_http_rejected():
     with pytest.raises(ValueError, match="Plain HTTP"):
         spec("a").__class__("x", "remote", "model",
             "http://api.example.com/v1/chat/completions", enabled=True).validate()
+
+
+def test_fusion_uses_general_high_and_required_tool(monkeypatch):
+    captured = {}
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, *args): return b'{"choices":[{"message":{"content":"ok"}}]}'
+    def fake_urlopen(request, timeout):
+        captured["body"] = json.loads(request.data.decode())
+        return Response()
+    monkeypatch.setattr("chimera.fabric.urlopen", fake_urlopen)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-placeholder")
+    s = AgentSpec("fusion", "openrouter", "openrouter/fusion",
+        "https://openrouter.ai/api/v1/chat/completions",
+        key_env="OPENROUTER_API_KEY", role="synthesizer", enabled=True)
+    assert ChatEndpoint(s, RequestBudget(1)).answer("question") == "ok"
+    assert captured["body"]["plugins"] == [{"id": "fusion", "preset": "general-high"}]
+    assert captured["body"]["tool_choice"] == "required"
