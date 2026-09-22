@@ -18,6 +18,16 @@ docker compose up -d --build
 
 The default model `qwen2.5:1.5b` downloads automatically. Open http://127.0.0.1:8080, select **Agent council**, and ask a question. When a call fails, the app reports the failure rather than returning a simulated completion. The existing `scripts/real_model_smoke.py` now verifies **four actual generation calls** using the real `smollm2:135m` CPU model in GitHub Actions; it also ensures code execution is disabled in the standard Docker deployment.
 
+To load the **actual upstream Agency Agents specialist prompts into the Docker council**, clone the trusted role repository locally and start with the optional read-only mount:
+
+```bash
+git clone https://github.com/msitarzewski/agency-agents.git ../agency-agents
+CHIMERA_AGENCY_PATH="$(cd ../agency-agents && pwd)" \\
+  docker compose -f compose.yaml -f compose.agency.yaml up -d --build
+```
+
+The browser will report that Agency Agents roles are active. This read-only mount does not install or enable jcode inside Docker and does not grant repository write access.
+
 To use more than one set of weights, first pull locally, for example:
 
 ```bash
