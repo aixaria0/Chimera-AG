@@ -1,6 +1,6 @@
-# Chimera-AG v0.10 — Real Local AI Product
+# Chimera-AG v0.11 — Live Local Council + jcode
 
-**A real, self-hosted AI chat product is now included.** It runs actual open-weight models in Ollama on your machine, with a browser interface, persistent model storage and live inference checks. This is a real single-model product; the separate multi-agent research engine and jcode bridge have not yet been integrated into the browser experience.
+**A real, self-hosted AI product with three live execution modes.** Single-model chat, Chimera’s existing multi-agent Council using actual Ollama inference, and an explicitly enabled local Agency Agents × jcode coding workflow all connect to the same browser product. The default Docker installation runs local chat and Council; jcode file execution stays disabled unless configured on an authorized local host. See [the complete live integration guide](docs/LIVE_COUNCIL_PRODUCT.md).
 
 ## Start the product (real model; no API keys)
 
@@ -12,7 +12,7 @@ cd Chimera-AG
 docker compose up -d --build
 ```
 
-The first launch automatically downloads the real default `qwen2.5:1.5b` Ollama model. Open **http://127.0.0.1:8080** on that machine and chat with it. To use a larger model, set `CHIMERA_MODEL` as described in [the product runbook](docs/REAL_LOCAL_PRODUCT.md).
+The first launch automatically downloads the real default `qwen2.5:1.5b` Ollama model. Open **http://127.0.0.1:8080** on that machine. Choose **Agent council** for real worker → synthesis → verifier model calls. To use a larger model, set `CHIMERA_MODEL` as described in [the product runbook](docs/REAL_LOCAL_PRODUCT.md).
 
 The GitHub Actions [real-model workflow](.github/workflows/real-model.yml) downloads actual model weights and performs a genuine model generation request on an ephemeral runner. For an always-on service, operate Docker Compose on your own machine/server.
 
