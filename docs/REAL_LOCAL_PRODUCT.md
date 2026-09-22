@@ -12,15 +12,13 @@ Requirements: Docker Engine and Docker Compose v2, enough available disk space f
 git clone https://github.com/aixaria0/Chimera-AG.git
 cd Chimera-AG
 docker compose up -d --build
-docker compose exec -T ollama ollama pull qwen2.5:1.5b
 ```
 
-Open **http://127.0.0.1:8080** on that same machine. The browser status display queries the live model registry. Before the model is downloaded, it reports that the model is missing rather than pretending to respond.
+Compose's `model-init` service downloads the selected model weights automatically before starting Chimera. The first startup needs an internet connection and free disk space; later startups reuse the Ollama Docker volume.\n\nOpen **http://127.0.0.1:8080** on that same machine. The browser status display queries the live model registry. Before the model is downloaded, it reports that the model is missing rather than pretending to respond.
 
 To use a different model:
 
 ```bash
-docker compose exec -T ollama ollama pull qwen2.5:7b
 CHIMERA_MODEL=qwen2.5:7b docker compose up -d --build
 ```
 
