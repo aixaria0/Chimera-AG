@@ -61,10 +61,11 @@ class OllamaBackend:
         return sorted({row["name"] for row in models
                        if isinstance(row, dict) and isinstance(row.get("name"), str)})
 
-    def chat(self, messages: list[dict], *, model: str | None = None) -> dict:
+    def chat(self, messages: list[dict], *, model: str | None = None,
+             max_predict: int = 256) -> dict:
         result = self.request("POST", "/api/chat",
                               {"model": model or self.model, "messages": messages,
-                               "stream": False, "options": {"num_predict": 256}},
+                               "stream": False, "options": {"num_predict": max_predict}},
                               timeout=120)
         text = result.get("message", {}).get("content")
         if not isinstance(text, str) or not text.strip():
@@ -224,7 +225,7 @@ def make_handler(backend: OllamaBackend, *, code: dict | None = None,
                     # Preserve conversation context rather than discarding earlier turns.
                     context = "\\n".join(
                         f"{message['role']}: {message['content']}"
-                        for message in messages)
+                        for message in messages)[-6000:]
                     result = run_live_council(
                         backend, context, checkout=agency_checkout,
                         requested_models=body.get("models"),
