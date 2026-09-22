@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "chimera-coordination"
-version = "0.1.0"
-description = "Controlled evolution of hybrid local/cloud agent coordination"
+version = "0.2.0"
+description = "Bounded hybrid agent coordination and model discovery"
 requires-python = ">=3.10"
 dependencies = []
 [project.optional-dependencies]
@@ -12,5 +12,7 @@ cloud = ["openai>=1.0"]
 test = ["pytest>=8"]
 [project.scripts]
 chimera = "chimera.cli:main"
+chimera-fabric = "chimera.fabric_cli:main"
+chimera-discover = "chimera.discover_cli:main"
 [tool.setuptools.packages.find]
 include = ["chimera*"]
