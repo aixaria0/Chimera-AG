@@ -18,6 +18,8 @@ def main() -> None:
     parser.add_argument("--jcode", default="jcode")
     parser.add_argument("--phase-timeout", type=int, default=180)
     parser.add_argument("--test-timeout", type=int, default=300)
+    parser.add_argument("--declarative-write-path", action="append", default=[],
+                        help="Explicitly allow one NEW relative file to be created from jcode JSON intent")
     parser.add_argument("--execute", action="store_true",
                         help="Opt in to jcode execution and local file modification")
     args = parser.parse_args()
@@ -31,9 +33,10 @@ def main() -> None:
     result = execute_workflow(
         checkout=args.agency_checkout, workspace=args.workspace, task=args.task,
         roles=roles, test_suite=args.test_suite, executable=args.jcode,
-        per_phase_timeout=args.phase_timeout, test_timeout=args.test_timeout)
+        per_phase_timeout=args.phase_timeout, test_timeout=args.test_timeout,
+        declarative_write_paths=frozenset(args.declarative_write_path))
     print(json.dumps(result, indent=2))
-    if result["status"] != "candidate_for_human_review":
+    if result["status"] not in ("candidate_for_human_review", "tests_passed_review_inconclusive"):
         raise SystemExit(1)
 
 
