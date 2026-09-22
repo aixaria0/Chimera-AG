@@ -1,4 +1,4 @@
-# Chimera-AG v0.11 — Live Local Council + jcode
+# Chimera-AG v0.12 — Measured Real-Model Product
 
 **A real, self-hosted AI product with three live execution modes.** Single-model chat, Chimera’s existing multi-agent Council using actual Ollama inference, and an explicitly enabled local Agency Agents × jcode coding workflow all connect to the same browser product. The default Docker installation runs local chat and Council; jcode file execution stays disabled unless configured on an authorized local host. See [the complete live integration guide](docs/LIVE_COUNCIL_PRODUCT.md).
 
@@ -14,7 +14,7 @@ docker compose up -d --build
 
 The first launch automatically downloads the real default `qwen2.5:1.5b` Ollama model. Open **http://127.0.0.1:8080** on that machine. Choose **Agent council** for real worker → synthesis → verifier model calls. To use a larger model, set `CHIMERA_MODEL` as described in [the product runbook](docs/REAL_LOCAL_PRODUCT.md).
 
-The GitHub Actions [real-model workflow](.github/workflows/real-model.yml) downloads actual model weights and performs a genuine model generation request on an ephemeral runner. For an always-on service, operate Docker Compose on your own machine/server.
+The GitHub Actions [real-model workflow](.github/workflows/real-model.yml) downloads actual model weights, exercises genuine Council inference, and compares Council and single-model answers on the same fixed tasks. The [real-jcode workflow](.github/workflows/real-jcode.yml) installs the actual upstream coding agent and tests its connection to Ollama. See [v0.12 validation and limitations](docs/REAL_VALIDATION_V12.md) for actual evidence, a measured 0/2 smoke-benchmark result for both arms, and the opt-in bounded coding compatibility adapter. For an always-on service, operate Docker Compose on your own machine/server.
 
 ---
 
