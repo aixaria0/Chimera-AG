@@ -41,6 +41,10 @@ report = json.loads(path.read_text())
 print("REAL_JCODE_ARTIFACT_STATUS=" + str(report.get("status")))
 print("REAL_JCODE_CONTENT_SHA256=" + str(report.get("content_sha256")))
 print("REAL_JCODE_TEST_STATUS=" + str(report.get("test_status")))
+print("PUBLIC_FIXTURE_TEST_OUTPUT=" + repr(report.get("test_output_preview", "")[:700]))
+artifact = pathlib.Path(sys.argv[2], "a.txt")
+if artifact.exists():
+    print("PUBLIC_FIXTURE_GENERATED_CONTENT=" + repr(artifact.read_text()[:400]))
 if report.get("status") == "candidate_for_human_review":
     assert report["generator"] == "real_upstream_jcode"
     assert report["tests_passed"] is True
