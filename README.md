@@ -1,4 +1,22 @@
-# Chimera-AG v0.8 — Evidence-Routed Intelligence Council
+# Chimera-AG v0.10 — Real Local AI Product
+
+**A real, self-hosted AI chat product is now included.** It runs actual open-weight models in Ollama on your machine, with a browser interface, persistent model storage and live inference checks. This is a real single-model product; the separate multi-agent research engine and jcode bridge have not yet been integrated into the browser experience.
+
+## Start the product (real model; no API keys)
+
+Requires Docker Engine and Docker Compose v2:
+
+```bash
+git clone https://github.com/aixaria0/Chimera-AG.git
+cd Chimera-AG
+docker compose up -d --build
+```
+
+The first launch automatically downloads the real default `qwen2.5:1.5b` Ollama model. Open **http://127.0.0.1:8080** on that machine and chat with it. To use a larger model, set `CHIMERA_MODEL` as described in [the product runbook](docs/REAL_LOCAL_PRODUCT.md).
+
+The GitHub Actions [real-model workflow](.github/workflows/real-model.yml) downloads actual model weights and performs a genuine model generation request on an ephemeral runner. For an always-on service, operate Docker Compose on your own machine/server.
+
+---
 
 Chimera is an experimental multi-model coordination system for local and cloud AI endpoints. It can discover model catalogs, register large heterogeneous agent pools, fan tasks out across workers, synthesize competing answers, and independently verify the synthesis.
 

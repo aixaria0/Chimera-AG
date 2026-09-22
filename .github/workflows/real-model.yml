@@ -1,0 +1,46 @@
+name: Real local model inference
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - chimera/product.py
+      - web/**
+      - Dockerfile
+      - compose.yaml
+      - scripts/real_model_smoke.py
+      - .github/workflows/real-model.yml
+  pull_request:
+    paths:
+      - chimera/product.py
+      - web/**
+      - Dockerfile
+      - compose.yaml
+      - scripts/real_model_smoke.py
+      - .github/workflows/real-model.yml
+permissions:
+  contents: read
+jobs:
+  real-ollama-inference:
+    name: Real Ollama model on GitHub-hosted CPU
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      CHIMERA_MODEL: smollm2:135m
+      CHIMERA_PORT: "8080"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Start actual application and actual Ollama container
+        run: docker compose up -d --build
+      - name: Assert real model was automatically downloaded into Ollama
+        run: docker compose exec -T ollama ollama list
+      - name: Generate real model response through browser product API
+        run: python scripts/real_model_smoke.py
+      - name: Show service logs only on failure
+        if: failure()
+        run: docker compose logs --tail=80
+      - name: Stop temporary test machine containers
+        if: always()
+        run: docker compose down
