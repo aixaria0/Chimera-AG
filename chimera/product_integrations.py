@@ -7,6 +7,7 @@ verification; the API reports that limitation explicitly.
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -37,17 +38,20 @@ def _instruction(role: str, checkout: Path | None) -> str:
         return LOCAL_ROLES[role]
     guidance = load_role(checkout, AGENCY_ROLE_IDS[role]).instructions
     # A role prompt is a guiding persona, not permission to use tools or exfiltrate.
-    return guidance[:6000] + "\nDo not execute code, tools or external actions."
+    tail = (" Return only APPROVE or REJECT; give no explanation." if role == "verifier" else "")
+    return guidance[:6000] + "\nDo not execute code, tools or external actions." + tail
 
 
 class OllamaCouncilEndpoint:
     """Adapter implementing Council's ChatEndpoint contract via Ollama /api/chat."""
     def __init__(self, spec: AgentSpec, budget: RequestBudget, *,
-                 backend, instruction: str):
+                 backend, instruction: str, trace: list, trace_lock):
         self.spec = spec
         self.budget = budget
         self.backend = backend
         self.instruction = instruction
+        self.trace = trace
+        self.trace_lock = trace_lock
 
     def answer(self, prompt: str) -> str:
         if not self.budget.claim():
@@ -55,7 +59,11 @@ class OllamaCouncilEndpoint:
         result = self.backend.chat([
             {"role": "system", "content": self.instruction},
             {"role": "user", "content": prompt},
-        ], model=self.spec.model)
+        ], model=self.spec.model, max_predict=96)
+        with self.trace_lock:
+            self.trace.append({"agent": self.spec.name, "model": self.spec.model,
+                               "generated_tokens": result.get("eval_count"),
+                               "done": result.get("done")})
         return result["reply"]
 
 
@@ -92,10 +100,13 @@ def run_live_council(backend, task: str, *, checkout: Path | None = None,
         base_url=backend.endpoint + "/api/chat", role=role, enabled=True,
     ) for name, role, model in roles]
     instructions = {name: _instruction(name, checkout) for name, _, _ in roles}
+    trace = []
+    trace_lock = threading.Lock()
     council = Council(
         specs, max_workers=2,
         endpoint_factory=lambda spec, budget: OllamaCouncilEndpoint(
-            spec, budget, backend=backend, instruction=instructions[spec.name]),
+            spec, budget, backend=backend, instruction=instructions[spec.name],
+            trace=trace, trace_lock=trace_lock),
     )
     report = council.run(task)
     # Model agreement only; never call a reused model an independent verifier.
@@ -105,7 +116,7 @@ def run_live_council(backend, task: str, *, checkout: Path | None = None,
         return {"status": "failed", "reply": None, "candidate": None,
                 "error_types": sorted({str(v).split(":", 1)[0]
                                        for v in report.get("errors", {}).values()}),
-                "requests_used": report["requests_used"]}
+                "requests_used": report["requests_used"], "trace": trace}
     return {
         "status": report["status"],
         "reply": candidate,  # Expose unverified candidates, visibly tagged as such.
@@ -116,6 +127,7 @@ def run_live_council(backend, task: str, *, checkout: Path | None = None,
         "worker_responses": report["worker_responses"],
         "verifier_agreement": report["verifier_agreement"],
         "requests_used": report["requests_used"],
+        "trace": sorted(trace, key=lambda item: item["agent"]),
         "elapsed_seconds": report["elapsed_seconds"],
         "agency_role_source": "agency-agents" if checkout else "chimera-local",
     }
@@ -137,6 +149,7 @@ def coding_config() -> dict:
         raise ValueError("Coding workspace and Agency checkout must be separate")
     for role in ("planner", "engineer", "critic"):
         load_role(roles, AGENCY_ROLE_IDS[role])
+    load_role(roles, "engineering/engineering-senior-developer.md")
     return {"enabled": True, "checkout": roles, "workspace": root,
             "executable": executable}
 
