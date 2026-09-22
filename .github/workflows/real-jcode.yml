@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      CHIMERA_MODEL: qwen2.5-coder:1.5b
+      CHIMERA_MODEL: qwen2.5-coder:3b
       CHIMERA_PORT: "8080"
       JCODE_NO_TELEMETRY: "1"
       DO_NOT_TRACK: "1"
