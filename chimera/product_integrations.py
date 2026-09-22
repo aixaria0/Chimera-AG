@@ -153,8 +153,11 @@ def coding_config() -> dict:
     for role in ("planner", "engineer", "critic"):
         load_role(roles, AGENCY_ROLE_IDS[role])
     load_role(roles, "engineering/engineering-senior-developer.md")
+    paths = frozenset(name.strip() for name in
+                      os.environ.get("CHIMERA_CODE_WRITE_PATHS", "").split(",")
+                      if name.strip())
     return {"enabled": True, "checkout": roles, "workspace": root,
-            "executable": executable}
+            "executable": executable, "declarative_write_paths": paths}
 
 
 def run_live_coding(task: str, *, config: dict) -> dict:
@@ -170,9 +173,12 @@ def run_live_coding(task: str, *, config: dict) -> dict:
                "implementer": "engineering/engineering-senior-developer.md",
                "reviewer": AGENCY_ROLE_IDS["critic"]},
         executable=config["executable"], per_phase_timeout=180, test_timeout=300,
+        declarative_write_paths=config.get("declarative_write_paths", frozenset()),
     )
     return {
         "status": report["status"], "phases": report["phases"],
+        "constrained_model_edits": report.get("constrained_model_edits", []),
+        "review_inconclusive": report.get("review_inconclusive", False),
         "workspace_changed": report["workspace_changed"],
         "human_approval_required": True, "committed": False, "deployed": False,
     }
