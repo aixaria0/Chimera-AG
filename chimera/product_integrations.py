@@ -7,6 +7,7 @@ verification; the API reports that limitation explicitly.
 from __future__ import annotations
 
 import os
+import shutil
 import threading
 from pathlib import Path
 from urllib.parse import urlparse
@@ -145,6 +146,8 @@ def coding_config() -> dict:
     roles = Path(checkout).resolve(strict=True)
     if not root.is_dir() or not roles.is_dir():
         raise ValueError("Coding paths must be existing directories")
+    if shutil.which(executable) is None:
+        raise ValueError("The actual jcode executable must be installed before enabling coding")
     if root == roles or root in roles.parents or roles in root.parents:
         raise ValueError("Coding workspace and Agency checkout must be separate")
     for role in ("planner", "engineer", "critic"):
