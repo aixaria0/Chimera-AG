@@ -33,7 +33,8 @@ def _read_write_intent(output: str) -> dict | None:
     args = value.get("arguments")
     if not isinstance(args, dict):
         return None
-    if set(args) not in ({"file_path", "content"}, {"file_path", "content", "intent"}):
+    permitted = {"file_path", "content", "intent", "accept_large_output", "format"}
+    if not {"file_path", "content"} <= set(args) or not set(args) <= permitted:
         return None
     return args
 
