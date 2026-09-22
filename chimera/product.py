@@ -6,6 +6,7 @@ The browser talks only to this same-origin server; this server talks to Ollama.
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +18,39 @@ from urllib.request import Request, urlopen
 from .product_integrations import coding_config, run_live_coding, run_live_council
 
 STATIC = Path(__file__).resolve().parent.parent / "web"
+
+def _static_root() -> Path:
+    """The built Lovable UI is optional; existing bundled UI remains the default."""
+    configured = os.environ.get("CHIMERA_WEB_DIST")
+    if not configured:
+        return STATIC
+    root = Path(configured).resolve(strict=True)
+    if not root.is_dir() or not (root / "index.html").is_file():
+        raise ValueError("CHIMERA_WEB_DIST must contain a compiled index.html")
+    return root
+
+
+def _static_asset(root: Path, request_path: str) -> tuple[Path, str] | None:
+    """Serve only the compiled SPA shell and /assets, never source or private files."""
+    from urllib.parse import unquote
+    if request_path in ("/", "/index.html"):
+        return root / "index.html", "text/html; charset=utf-8"
+    name = unquote(request_path.lstrip("/"))
+    parts = Path(name).parts
+    if (not name.startswith("assets/") or len(parts) < 2
+            or any(part in (".", "..") or part.startswith(".") for part in parts)
+            or chr(92) in name or chr(0) in name):
+        return None
+    candidate = (root / name).resolve()
+    if not candidate.is_relative_to(root.resolve()) or not candidate.is_file():
+        return None
+    mime = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
+    if mime in ("text/javascript", "application/javascript"):
+        mime = "text/javascript"
+    elif mime.startswith("text/"):
+        mime += "; charset=utf-8"
+    return candidate, mime
+
 DEFAULT_MODEL = "qwen2.5:1.5b"
 MAX_BODY = 64 * 1024
 MAX_MESSAGES = 16
@@ -153,14 +187,23 @@ def make_handler(backend: OllamaBackend, *, code: dict | None = None,
                 except (OSError, ValueError, TimeoutError, URLError, HTTPError):
                     self.send_json(503, {"error": "Ollama unavailable"})
                 return
-            files = {"/": ("index.html", "text/html; charset=utf-8"),
-                     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-                     "/style.css": ("style.css", "text/css; charset=utf-8")}
-            if path not in files:
+            root = _static_root()
+            if root == STATIC:
+                files = {"/": ("index.html", "text/html; charset=utf-8"),
+                         "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                         "/style.css": ("style.css", "text/css; charset=utf-8")}
+                if path not in files:
+                    self.send_json(404, {"error": "Not found"})
+                    return
+                filename, mime = files[path]
+                self.send_bytes(200, (STATIC / filename).read_bytes(), mime)
+                return
+            asset = _static_asset(root, path)
+            if asset is None:
                 self.send_json(404, {"error": "Not found"})
                 return
-            filename, mime = files[path]
-            self.send_bytes(200, (STATIC / filename).read_bytes(), mime)
+            file_path, mime = asset
+            self.send_bytes(200, file_path.read_bytes(), mime)
 
         def do_POST(self):
             if self.path not in ("/api/chat", "/api/council", "/api/code"):
