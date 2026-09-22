@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import time
 from dataclasses import asdict, dataclass
@@ -50,6 +51,50 @@ def git_snapshot(workspace: Path, *, runner=subprocess.run) -> str:
     if result.returncode:
         raise RuntimeError("Cannot inspect workspace git status")
     return result.stdout
+
+
+def git_fingerprint(workspace: Path, *, runner=subprocess.run) -> str:
+    """Fingerprint HEAD, tracked content, and untracked files, not just status names.
+
+    A file can change during read-only review while still appearing as the same
+    ' M file.py' status line. Include changed bytes to catch that case.
+    """
+    root = workspace.resolve(strict=True)
+    digest = hashlib.sha256()
+    commands = (
+        ["git", "rev-parse", "HEAD"],
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        ["git", "diff", "--binary", "HEAD", "--"],
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+    )
+    values = []
+    for command in commands:
+        response = runner(
+            command, cwd=str(root), capture_output=True,
+            timeout=20, check=False,
+        )
+        if response.returncode:
+            raise RuntimeError("Cannot fingerprint Git workspace")
+        values.append(response.stdout)
+        digest.update(command[1].encode("ascii"))
+        digest.update(response.stdout)
+    # Untracked files never appear in git diff HEAD. Include their content and
+    # symlink targets, while never traversing an untracked symlink.
+    for name in sorted(filter(None, values[3].split(b"\x00"))):
+        relative = os.fsdecode(name)
+        path = root / relative
+        digest.update(name)
+        if path.is_symlink():
+            digest.update(b"SYMLINK")
+            digest.update(os.fsencode(os.readlink(path)))
+        elif path.is_file():
+            digest.update(b"FILE")
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+        else:
+            digest.update(b"OTHER")
+    return digest.hexdigest()
 
 
 def run_tests(workspace: Path, suite: str, *, timeout: int = 300,
@@ -107,11 +152,11 @@ def execute_workflow(
     call_agent = run_agent or (
         lambda prompt: run_jcode(prompt, workspace=root, executable=executable,
                                  timeout=per_phase_timeout))
-    status = status_fn or (lambda: git_snapshot(root))
+    status = status_fn or (lambda: git_fingerprint(root))
     test = test_fn or (lambda: run_tests(root, test_suite, timeout=test_timeout))
-    initial = status()
-    if initial.strip():
+    if git_snapshot(root).strip() if status_fn is None else status().strip():
         raise ValueError("Workspace must have a clean Git status before starting")
+    initial = status()
     phases: list[Phase] = []
 
     def invoke(name: str, prompt: str) -> JcodeResult:
