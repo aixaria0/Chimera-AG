@@ -48,6 +48,37 @@ def main():
         raise RuntimeError("Model did not generate a valid completed answer")
     if not isinstance(answer.get("eval_count"), int) or answer["eval_count"] < 1:
         raise RuntimeError("No real generated model tokens were reported")
+    features = request("/api/features")
+    if not features.get("council") or features.get("coding") is not False:
+        raise RuntimeError("Real Council was not exposed or jcode was unexpectedly enabled")
+    # The default container must never offer filesystem-mutating jcode execution.
+    try:
+        request("/api/code", {"task": "do not run", "confirm": True})
+    except HTTPError as exc:
+        if exc.code != 403:
+            raise RuntimeError("Coding endpoint has incorrect disabled status")
+    else:
+        raise RuntimeError("Coding unexpectedly enabled in standard Docker product")
+    council = request("/api/council", {
+        "messages": [{"role": "user", "content":
+                       "What is one plus one? Answer briefly."}],
+    })
+    if not isinstance(council.get("reply"), str) or not council["reply"].strip():
+        raise RuntimeError("Live council returned no candidate")
+    if council.get("requests_used") != 4:
+        raise RuntimeError("Live council did not make four real model requests")
+    trace = council.get("trace", [])
+    if (len(trace) != 4 or
+            any(t.get("generated_tokens", 0) < 1 or
+                t.get("model") != MODEL for t in trace)):
+        raise RuntimeError("Live council did not produce four actual model generations")
+    if council.get("verified_by_independent_model") is not False:
+        raise RuntimeError("Reusing one model was inaccurately reported as independent")
+    print(json.dumps({"real_council_inference": True,
+                      "model": MODEL, "agent_generations": trace,
+                      "status": council["status"],
+                      "independent_model_verification": False},
+                     ensure_ascii=False))
     print(json.dumps({
         "real_model_inference": True,
         "model": answer["model"],

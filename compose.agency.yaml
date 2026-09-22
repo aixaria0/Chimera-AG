@@ -1,0 +1,10 @@
+# Optional read-only specialist prompts from the real Agency Agents checkout.
+# Usage: CHIMERA_AGENCY_PATH=/absolute/path/to/agency-agents \
+#   docker compose -f compose.yaml -f compose.agency.yaml up -d --build
+# No jcode binary or source workspace is mounted into the Docker app.
+services:
+  chimera:
+    volumes:
+      - ${CHIMERA_AGENCY_PATH:?Set absolute path to trusted Agency Agents checkout}:/opt/agency-agents:ro
+    environment:
+      CHIMERA_AGENCY_CHECKOUT: /opt/agency-agents

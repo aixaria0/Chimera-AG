@@ -14,6 +14,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from .product_integrations import coding_config, run_live_coding, run_live_council
+
 STATIC = Path(__file__).resolve().parent.parent / "web"
 DEFAULT_MODEL = "qwen2.5:1.5b"
 MAX_BODY = 64 * 1024
@@ -59,10 +61,11 @@ class OllamaBackend:
         return sorted({row["name"] for row in models
                        if isinstance(row, dict) and isinstance(row.get("name"), str)})
 
-    def chat(self, messages: list[dict]) -> dict:
+    def chat(self, messages: list[dict], *, model: str | None = None,
+             max_predict: int = 256) -> dict:
         result = self.request("POST", "/api/chat",
-                              {"model": self.model, "messages": messages,
-                               "stream": False, "options": {"num_predict": 256}},
+                              {"model": model or self.model, "messages": messages,
+                               "stream": False, "options": {"num_predict": max_predict}},
                               timeout=120)
         text = result.get("message", {}).get("content")
         if not isinstance(text, str) or not text.strip():
@@ -89,13 +92,16 @@ def _validate_messages(raw: object) -> list[dict]:
     return messages
 
 
-def make_handler(backend: OllamaBackend):
+def make_handler(backend: OllamaBackend, *, code: dict | None = None,
+                 agency_checkout: Path | None = None):
     # Backpressure prevents a browser refresh or accidental loop from launching
     # unbounded simultaneous model inference on a small CPU/GPU machine.
     slots = threading.BoundedSemaphore(2)
+    coding_slot = threading.BoundedSemaphore(1)
+    code = code or {"enabled": False}
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "ChimeraLocal/1.0"
+        server_version = "ChimeraLocal/1.1"
 
         def _headers(self, code: int, mime: str, length: int):
             self.send_response(code)
@@ -132,6 +138,14 @@ def make_handler(backend: OllamaBackend):
                     self.send_json(503, {"status": "ollama_unavailable",
                                          "model": backend.model})
                 return
+            if path == "/api/features":
+                self.send_json(200, {
+                    "single": True, "council": True,
+                    "coding": bool(code.get("enabled")),
+                    "agency_roles": agency_checkout is not None,
+                    "coding_requires_human_review": True,
+                })
+                return
             if path == "/api/models":
                 try:
                     self.send_json(200, {"models": backend.installed(),
@@ -149,15 +163,25 @@ def make_handler(backend: OllamaBackend):
             self.send_bytes(200, (STATIC / filename).read_bytes(), mime)
 
         def do_POST(self):
-            if self.path != "/api/chat":
+            if self.path not in ("/api/chat", "/api/council", "/api/code"):
                 self.send_json(404, {"error": "Not found"})
                 return
-            # The product binds to loopback by default and rejects cross-site POSTs.
+            # Only the operator can enable code. Explicit browser intent plus a
+            # same-origin check prevent drive-by websites from invoking jcode.
+            if self.path == "/api/code" and not code.get("enabled"):
+                self.send_json(403, {"error": "Coding mode is disabled by the operator"})
+                return
             origin = self.headers.get("Origin")
             expected = "http://" + self.headers.get("Host", "")
             if origin is not None and origin != expected:
                 self.send_json(403, {"error": "Cross-site requests are not accepted"})
                 return
+            if self.path == "/api/code":
+                host = self.headers.get("Host", "").split(":", 1)[0].lower()
+                if (origin != expected or host not in ("localhost", "127.0.0.1")
+                        or self.headers.get("X-Chimera-Intent") != "explicit-code-run"):
+                    self.send_json(403, {"error": "Coding requires local same-origin explicit intent"})
+                    return
             try:
                 size = int(self.headers.get("Content-Length", "0"))
             except ValueError:
@@ -173,23 +197,52 @@ def make_handler(backend: OllamaBackend):
                 body = json.loads(self.rfile.read(size))
                 if not isinstance(body, dict):
                     raise ValueError("Request must be an object")
-                messages = _validate_messages(body.get("messages"))
+                if self.path == "/api/code":
+                    task = body.get("task")
+                    if not isinstance(task, str) or not task.strip() or len(task) > MAX_TEXT:
+                        raise ValueError("Coding task must contain 1–6000 characters")
+                    if body.get("confirm") is not True:
+                        raise ValueError("Explicit coding confirmation is required")
+                else:
+                    messages = _validate_messages(body.get("messages"))
+                    if self.path == "/api/council":
+                        models = body.get("models")
+                        if models is not None and (
+                            not isinstance(models, list) or len(models) > 4
+                            or any(not isinstance(item, str) for item in models)):
+                            raise ValueError("Choose up to four installed model names")
             except (ValueError, UnicodeError, json.JSONDecodeError) as exc:
                 self.send_json(400, {"error": str(exc)})
                 return
-            if not slots.acquire(blocking=False):
-                self.send_json(429, {"error": "Model is busy; retry shortly"})
+            slot = coding_slot if self.path == "/api/code" else slots
+            if not slot.acquire(blocking=False):
+                self.send_json(429, {"error": "The selected runtime is busy; retry shortly"})
                 return
             try:
-                result = backend.chat(messages)
-                self.send_json(200, result)
+                if self.path == "/api/code":
+                    self.send_json(200, run_live_coding(task, config=code))
+                elif self.path == "/api/council":
+                    # Preserve conversation context rather than discarding earlier turns.
+                    context = "\\n".join(
+                        f"{message['role']}: {message['content']}"
+                        for message in messages)[-6000:]
+                    result = run_live_council(
+                        backend, context, checkout=agency_checkout,
+                        requested_models=body.get("models"),
+                    )
+                    if result["status"] == "failed":
+                        self.send_json(503, result)
+                    else:
+                        self.send_json(200, result)
+                else:
+                    self.send_json(200, backend.chat(messages))
             except HTTPError as exc:
                 self.send_json(503, {"error": "Model inference failed",
                                      "upstream_status": exc.code})
             except (OSError, TimeoutError, ValueError, URLError, KeyError, TypeError):
-                self.send_json(503, {"error": "Model inference unavailable"})
+                self.send_json(503, {"error": "Configured runtime is unavailable"})
             finally:
-                slots.release()
+                slot.release()
 
         def log_message(self, format, *args):
             # Do not log chat messages or model outputs.
@@ -206,7 +259,13 @@ def main() -> None:
     backend = OllamaBackend(
         os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"),
         os.environ.get("CHIMERA_MODEL", DEFAULT_MODEL))
-    server = ThreadingHTTPServer((host, port), make_handler(backend))
+    code = coding_config()
+    agency_path = os.environ.get("CHIMERA_AGENCY_CHECKOUT")
+    agency_checkout = Path(agency_path) if agency_path else None
+    if code.get("enabled") and host not in ("127.0.0.1", "localhost", "::1"):
+        raise ValueError("jcode execution requires a loopback-only Chimera web server")
+    server = ThreadingHTTPServer((host, port), make_handler(
+        backend, code=code, agency_checkout=agency_checkout))
     print(f"Chimera Local listening on http://{host}:{port} with {backend.model}",
           flush=True)
     try:

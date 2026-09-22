@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - chimera/product.py
+      - chimera/product_integrations.py
+      - chimera/council.py
       - web/**
       - Dockerfile
       - compose.yaml
