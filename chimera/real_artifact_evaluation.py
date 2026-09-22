@@ -80,6 +80,19 @@ def main() -> None:
     tasks = json.loads(args.manifest.read_text(encoding="utf-8"))
     if not isinstance(tasks, list) or not tasks or len(tasks) > 100:
         parser.error("Manifest must include 1-100 tasks")
+    ids = set()
+    for item in tasks:
+        if not isinstance(item, dict) or set(item) != {"id", "source", "task", "target", "suite"}:
+            parser.error("Tasks must contain id, source, task, target and suite")
+        if not isinstance(item["id"], str) or not item["id"].strip() or item["id"] in ids:
+            parser.error("Task IDs must be nonempty and unique")
+        if not isinstance(item["task"], str) or not item["task"].strip():
+            parser.error("Task must be a nonempty string")
+        if item["suite"] not in ("pytest", "cargo"):
+            parser.error("Unsupported fixed test suite")
+        if not isinstance(item["target"], str) or not item["target"].strip():
+            parser.error("Operator must specify a target filename")
+        ids.add(item["id"])
     args.work_root.mkdir(parents=True)
     results = []
     for index, item in enumerate(tasks):
