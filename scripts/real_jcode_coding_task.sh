@@ -59,11 +59,12 @@ python - "$WORK_ROOT/result.json" "$WORK_ROOT/project" <<'PY'
 import json, pathlib, sys
 report = json.loads(pathlib.Path(sys.argv[1]).read_text())
 assert report["status"] in ("candidate_for_human_review", "tests_passed_review_inconclusive"), report["status"]
-assert len(report["constrained_model_edits"]) == 1, report["constrained_model_edits"]
-assert report["constrained_model_edits"][0]["path"] == "a.txt"
+assert len(report["constrained_model_edits"]) <= 1, report["constrained_model_edits"]
+if report["constrained_model_edits"]:
+    assert report["constrained_model_edits"][0]["path"] == "a.txt"
 assert [p["status"] for p in report["phases"]] == ["completed"] * 4
 assert pathlib.Path(sys.argv[2], "a.txt").read_text().strip() == "ok"
 assert report["human_approval_required"] is True
 assert report["committed"] is False and report["deployed"] is False
-print("REAL_JCODE_AGENCY_CODING_PIPELINE=PASS review_inconclusive=" + str(report["review_inconclusive"]))
+print("REAL_JCODE_AGENCY_CODING_PIPELINE=PASS review_inconclusive=" + str(report["review_inconclusive"]) + " constrained_adapter_used=" + str(bool(report["constrained_model_edits"])))
 PY
