@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - scripts/real_jcode_smoke.sh
+      - scripts/real_jcode_coding_task.sh
       - compose.jcode-ci.yaml
       - .github/workflows/real-jcode.yml
   pull_request:
@@ -36,6 +37,13 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Run genuine jcode CLI inference against installed local weights
         run: bash scripts/real_jcode_smoke.sh
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install actual Chimera coding workflow and pytest
+        run: python -m pip install -e '.[test]'
+      - name: Run real jcode plus actual Agency Agents coding workflow
+        run: bash scripts/real_jcode_coding_task.sh
       - name: Show service logs on failure
         if: failure()
         run: docker compose -f compose.yaml -f compose.jcode-ci.yaml logs --tail=80
