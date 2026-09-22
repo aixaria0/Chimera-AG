@@ -51,6 +51,14 @@ def main():
     features = request("/api/features")
     if not features.get("council") or features.get("coding") is not False:
         raise RuntimeError("Real Council was not exposed or jcode was unexpectedly enabled")
+    # The default container must never offer filesystem-mutating jcode execution.
+    try:
+        request("/api/code", {"task": "do not run", "confirm": True})
+    except HTTPError as exc:
+        if exc.code != 403:
+            raise RuntimeError("Coding endpoint has incorrect disabled status")
+    else:
+        raise RuntimeError("Coding unexpectedly enabled in standard Docker product")
     council = request("/api/council", {
         "messages": [{"role": "user", "content":
                        "What is one plus one? Answer briefly."}],
