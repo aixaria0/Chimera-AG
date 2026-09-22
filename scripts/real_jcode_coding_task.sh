@@ -11,7 +11,7 @@ cat > test_answer.py <<'PY'
 from pathlib import Path
 
 def test_coding_agent_created_real_file():
-    assert Path("ANSWER.txt").read_text(encoding="utf-8").strip() == "CHIMERA_REAL_CODING"
+    assert Path("a.txt").read_text(encoding="utf-8").strip() == "ok"
 PY
 cat > .gitignore <<'EOF'
 __pycache__/
@@ -28,9 +28,9 @@ set +e
 timeout 900s python -m chimera.coding_cli \
   --agency-checkout "$WORK_ROOT/agency-agents" \
   --workspace "$WORK_ROOT/project" \
-  --task 'Create ANSWER.txt containing exactly CHIMERA_REAL_CODING and a trailing newline. Do not alter tests or git settings. This is a one-file task.' \
+  --task 'Create a.txt. Its contents must be exactly the two lowercase letters ok. Do not modify the tests, and do not perform other actions.' \
   --jcode jcode --test-suite pytest \
-  --declarative-write-path ANSWER.txt --execute \
+  --declarative-write-path a.txt --execute \
   > "$WORK_ROOT/result.json"
 coding_exit=$?
 set -e
@@ -60,9 +60,9 @@ import json, pathlib, sys
 report = json.loads(pathlib.Path(sys.argv[1]).read_text())
 assert report["status"] in ("candidate_for_human_review", "tests_passed_review_inconclusive"), report["status"]
 assert len(report["constrained_model_edits"]) == 1, report["constrained_model_edits"]
-assert report["constrained_model_edits"][0]["path"] == "ANSWER.txt"
+assert report["constrained_model_edits"][0]["path"] == "a.txt"
 assert [p["status"] for p in report["phases"]] == ["completed"] * 4
-assert pathlib.Path(sys.argv[2], "ANSWER.txt").read_text().strip() == "CHIMERA_REAL_CODING"
+assert pathlib.Path(sys.argv[2], "a.txt").read_text().strip() == "ok"
 assert report["human_approval_required"] is True
 assert report["committed"] is False and report["deployed"] is False
 print("REAL_JCODE_AGENCY_CODING_PIPELINE=PASS review_inconclusive=" + str(report["review_inconclusive"]))
