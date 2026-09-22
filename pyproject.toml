@@ -26,6 +26,7 @@ chimera-code-compare = "chimera.coding_comparison:main"
 chimera-live-benchmark = "chimera.live_benchmark:main"
 chimera-real-code-pair = "chimera.real_coding_pair:main"
 chimera-repeat-eval = "chimera.repeated_evaluation:main"
+chimera-code-eval = "chimera.real_artifact_evaluation:main"
 chimera-jcode-artifact = "chimera.jcode_artifact_cli:main"
 [tool.setuptools.packages.find]
 include = ["chimera*"]
