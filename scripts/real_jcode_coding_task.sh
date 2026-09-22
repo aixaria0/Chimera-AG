@@ -47,7 +47,7 @@ else:
         for phase in report.get("phases", []):
             print("PHASE=" + phase["name"] + " STATUS=" + phase["status"]
                   + " RC=" + str(phase["returncode"]) + " OUTPUT_LENGTH="
-                  + str(len(phase["output_preview"])))
+                  + str(len(phase["output_preview"])) + " DIGEST=" + phase["output_digest"] + " OUTPUT=" + repr(phase["output_preview"][:850]))
     except (ValueError, KeyError, TypeError):
         print("REAL_CODING_REPORT_INVALID_JSON")
 PY
