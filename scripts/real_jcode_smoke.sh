@@ -21,3 +21,8 @@ docker compose -f compose.yaml -f compose.jcode-ci.yaml exec -T ollama ollama ps
     echo "Ollama did not report the requested model loaded after jcode" >&2; exit 1;
   }
 echo "REAL_JCODE_ACTUAL_OLLAMA_MODEL=PASS model=$CHIMERA_MODEL"
+python - <<'PY'
+from pathlib import Path
+text = Path("/tmp/chimera-real-jcode-output.txt").read_text()
+print("JCODE_PUBLIC_SMOKE_OUTPUT=", repr(text[:850]))
+PY
